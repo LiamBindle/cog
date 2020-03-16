@@ -1,0 +1,13 @@
+grid:
+  cs_res: 24
+  stretch_factor: 32.0
+  target_lat: -90.0
+  target_lon: -23.5
+job:
+  cores_per_node: 24
+  num_cores: 1
+  num_nodes: 1
+  queue: rvmartin
+paths:
+  restart_file: initial_restart_file.nc
+  run_directory: /home/liam/RunDirTemplates/rundir/foo

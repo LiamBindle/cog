@@ -1,3 +1,10 @@
 &fms_nml 
 print_memory_usage = .false., 
 domains_stack_size = 20000000/
+
+&fv_core_nml{% if grid.get('stretch_factor', 1) > 1 %}
+do_schmidt = .true.,
+stretch_fac = {{ grid['stretch_factor'] }},
+target_lon = {{ grid['target_lon'] % 360 }},
+target_lat = {{ grid['target_lat'] }}
+{% endif %}/

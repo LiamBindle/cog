@@ -1,0 +1,19 @@
+#!/bin/bash
+#BSUB -q general
+#BSUB -n 16
+#BSUB -W 6:00
+#BSUB -R "rusage[mem=150000] span[hosts=1]"
+#BSUB -a 'docker(liambindle/mypyenv)'
+#BSUB -J "SGV regrid"
+#BSUB -g /$USER/benchmarking
+#BSUB -o lsf-regrid-%J-output.txt
+
+source /opt/conda/bin/activate py36
+
+set -x                           # Print executed commands
+set -e                           # Exit immediately if a command fails
+
+# Execute simulation
+export PYTHONPATH=/my-projects/sgv/gcpy
+cd {{ paths['run_directory'] }}
+python -m gcpy.regrid_sg_restart /ExtData/GEOSCHEM_RESTARTS/v2018-11/initial_GEOSChem_rst.2x25_benchmark.nc --llres 2x2.5 --stretch-factor {{ grid['stretch_factor'] }} --target-lat {{ grid['target_lat'] }} --target-lon {{ grid['target_lon'] }} --cs-res {{ grid['cs_res'] }}

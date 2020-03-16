@@ -10,6 +10,11 @@ GCHP.IM_WORLD: 24
 GCHP.IM: 24
 GCHP.JM: 144
 GCHP.LM: 72
+{% if grid.get('stretch_factor', 1) > 1 %}
+GCHP.STRETCH_FACTOR: {{ grid['stretch_factor'] }}
+GCHP.TARGET_LON: {{ grid['target_lon'] % 360 }}
+GCHP.TARGET_LAT: {{ grid['target_lat'] }}
+{% endif %}
 
 # For FV advection do not use grid comp name prefix
 IM: 24

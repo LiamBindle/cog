@@ -13,9 +13,9 @@
 # Total cores must be divisible by 6. Cores per node must equal number
 # of cores divided by number of nodes. Make sure you have these
 # resources available.
-TOTAL_CORES=48
-NUM_NODES=3
-NUM_CORES_PER_NODE=16
+TOTAL_CORES={{ job['num_cores'] }}
+NUM_NODES={{ job['num_nodes'] }}
+NUM_CORES_PER_NODE={{ job['cores_per_node'] }}
 
 # Cores are distributed across each of the six cubed sphere faces using
 # configurable parameters NX and NY. Each face is divided into NX by NY/6
@@ -50,7 +50,7 @@ NY=6 # Ignore if NXNY_AUTO=ON
 #------------------------------------------------
 #   Internal Cubed Sphere Resolution
 #------------------------------------------------
-CS_RES=48 # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 deg
+CS_RES={{ grid['cs_res'] }} # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 deg
 
 #------------------------------------------------
 #    Debug Options
