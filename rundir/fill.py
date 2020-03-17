@@ -8,43 +8,26 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generates a run directory conf file.')
-    parser.add_argument('-i',
-                        metavar='S',
-                        type=str,
-                        required=True,
-                        help='path to config file')
-    parser.add_argument('-t',
-                        type=str,
-                        nargs='+',
-                        required=True,
-                        help='path to templates')
-    args = parser.parse_args()
+    with open('conf.yml', 'r') as conf_file:
+        conf = yaml.safe_load(conf_file)
 
-    # Parse the input file
-    with open(args.i, 'r') as file:
-        conf = yaml.safe_load(file)
-
-    output_dir = os.path.dirname(os.path.abspath(args.i))
-
-    # Loop through files in template directory
-    for template_dir in args.t:
-        # Load templates
+    for template_dir in conf['templates']:
         file_loader = FileSystemLoader(template_dir)
         env = Environment(loader=file_loader, comment_start_string='{##', comment_end_string='##}')
-        for root, dirs, files in os.walk(template_dir):
-            # Copy directories over
-            for dir in dirs:
-                pathlib.Path(os.path.join(output_dir, dir)).mkdir(exist_ok=True)
-            for file in files:
-                rpath = os.path.relpath(os.path.join(root, file), template_dir)
-                if os.path.islink(os.path.join(root, file)):
-                    try:
-                        shutil.copy(os.path.join(root, file), os.path.join(output_dir, rpath), follow_symlinks=False)
-                    except FileExistsError:
-                        print(f'File exists: {os.path.join(output_dir, rpath)}')
+        for root, dirnames, filenames in os.walk(template_dir, followlinks=False):
+            localroot = os.path.relpath(root, template_dir)
+            for dir in dirnames:
+                localdir = os.path.join(localroot, dir)
+                pathlib.Path(localdir).mkdir(exist_ok=True)
+            for fname in filenames:
+                template_file = os.path.join(root, fname)
+                localfname = os.path.join(localroot, fname)
+                if os.path.islink(template_file):
+                    if os.path.exists(localfname):
+                        os.remove(localfname)
+                    shutil.copy(template_file, localfname, follow_symlinks=False)
                 else:
-                    template = env.get_template(rpath)
+                    template = env.get_template(os.path.relpath(template_file, template_dir))
                     output = template.render(**conf)
-                    with open(os.path.join(output_dir, rpath), 'w') as f:
+                    with open(localfname, 'w') as f:
                         f.write(output)
