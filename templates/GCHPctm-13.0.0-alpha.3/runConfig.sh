@@ -188,10 +188,10 @@ WetLossLS_mode=${common_mode}
 # on gcgrid do not contain HEMCO variables which will have the same effect
 # as turning the HEMCO restart file option off in GC classic. However, all 
 # output restart files will contain HEMCO restart variables for your next run.
-INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_benchmark.nc
+# INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_benchmark.nc
 
 # You can specify a custom initial restart file here to overwrite:
-# INITIAL_RESTART=your_restart_filename_here
+INITIAL_RESTART={{ paths['restart_file'] }}
 
 #------------------------------------------------
 #    Output Restart Files

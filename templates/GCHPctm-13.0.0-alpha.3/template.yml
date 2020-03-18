@@ -1,0 +1,38 @@
+
+grid:
+  stretch_factor:
+    type: float
+    desc: "stretch factor"
+  target_lat:
+    type: float
+    desc: "target latitude"
+  target_lon:
+    type: float
+    desc: "target longitude"
+  cs_res:
+    type: int
+    desc: "cubed-sphere resolution"
+  validate:
+    - required: [ "cs_res" ]
+    - valid_if_false: "'stretch_factor' in grid and ('target_lon' not in grid or 'target_lat' not in grid)"
+      error: "target_lat and target_lon are required if stretch_factor is not None"
+job:
+  num_cores:
+    type: int
+    desc: "total number of cores"
+  cores_per_node:
+    type: int
+    desc: "cores per node"
+  queue:
+    type: str
+    desc: "job queue"
+  validate:
+    - required: [ "num_cores", "cores_per_node" ]
+    - valid_if_true: "job['num_cores'] % job['cores_per_node'] == 0"
+      error: "num_cores must be divisible by cores_per_node"
+paths:
+  restart_file:
+    type: str
+    desc: "restart file"
+  validate:
+    - required: [ "restart_file" ]
