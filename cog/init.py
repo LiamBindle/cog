@@ -3,7 +3,7 @@ import os.path
 import pathlib
 
 import yaml
-from cog.core import ConfigurationError, TemplateDirectoryError, SettingsGroup
+from cog.core import ConfigurationError, TemplateDirectoryError, SettingsGroup, template_hook_file
 
 
 class SettingsSubArgParser(SettingsGroup):
@@ -34,8 +34,8 @@ if __name__ == '__main__':
             for template_dir in conf['templates']:
                 if not os.path.exists(template_dir):
                     raise ConfigurationError(f'template directory "{template_dir}" doesn\'t exist!')
-                if not os.path.exists(os.path.join(template_dir, 'intf_decl.yml')):
-                    raise ConfigurationError(f'template directory "{template_dir}" doesn\'t contain an intf_decl.yml file!')
+                if not os.path.exists(os.path.join(template_dir, template_hook_file)):
+                    raise ConfigurationError(f'template directory "{template_dir}" doesn\'t contain an {template_hook_file} file!')
 
             print("Updated run directory templates.")
         else:
@@ -44,7 +44,7 @@ if __name__ == '__main__':
             # Join template directory's interface declarations
             intf_decl = {}
             for template_dir in conf['templates'][::-1]:
-                defs_fname = os.path.join(template_dir, 'intf_decl.yml')
+                defs_fname = os.path.join(template_dir, template_hook_file)
                 if os.path.exists(defs_fname):
                     with open(defs_fname, 'r') as f:
                         template_intf_decl = yaml.safe_load(f)

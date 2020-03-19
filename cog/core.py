@@ -1,27 +1,4 @@
-import collections
-import io
 import pydoc
-import argparse
-
-import yaml
-# conf.yaml ->  dict of kwargs -+-> templates -> output
-#        ^-------init generator---------+
-
-
-# Interface for defining configuration fields
-# - dict -> ConfigurationEntry
-# - dict of dicts -> ConfigurationEntryBundle (bundle of ConfigurationEntry)
-
-# Interface for querying configuration fields
-# ConfigurationEntriesBundle -> ConfigurationQuery (command line and wizard interfaces)
-# Therefore ConfigurationEntriesBundle must provide:
-# - group_name
-# - entry definitions (name, type, description)
-# - method for validating
-
-# Interfaces for generating conf.yml files.
-# - command line
-# - wizard
 
 
 class ConfigurationError(ValueError):
@@ -90,20 +67,4 @@ class SettingsGroup:
             raise ConfigurationError(''.join([f'\n\t- {e}' for e in errors]))
 
 
-if __name__ == '__main__':
-    import yaml
-
-    with open('/home/liam/RunDirTemplates/templates/GCHPctm-13.0.0-alpha.3/foo.yml', 'r') as f:
-        conf = yaml.safe_load(f)
-
-    with open('/home/liam/RunDirTemplates/scratch/conf.yml', 'r') as f:
-        filled = yaml.safe_load(f)
-
-    #group = GroupDefinition(group_name='job', **conf['job'])
-    #group.validate(**filled)
-
-    arparser = argparse.ArgumentParser()
-    subparser = arparser.add_subparsers(dest='command')
-    GroupArgParser('job', subparser.add_parser('job'), **conf['job'])
-
-    arparser.parse_args()
+template_hook_file='cog.yml'

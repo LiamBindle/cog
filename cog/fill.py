@@ -3,8 +3,9 @@ import shutil
 import pathlib
 
 import yaml
-
 from jinja2 import Environment, FileSystemLoader
+
+from cog.core import template_hook_file
 
 if __name__ == '__main__':
     # Open the run directory's config file
@@ -27,7 +28,7 @@ if __name__ == '__main__':
                 localdir = os.path.join(localroot, dir)
                 pathlib.Path(localdir).mkdir(exist_ok=True)
             for fname in filenames:
-                if fname == 'intf_decl.yml':
+                if fname == template_hook_file:
                     continue
                 template_file = os.path.join(root, fname)
                 localfname = os.path.join(localroot, fname)
