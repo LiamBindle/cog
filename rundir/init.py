@@ -1,182 +1,101 @@
-# import argparse
-# import os
-# import shutil
-# import pathlib
-#
-# import yaml
-#
-#
-#
-# def parse_grid_args(parser: argparse.ArgumentParser):
-#     parser.add_argument('-sf',
-#                         metavar='S',
-#                         type=float,
-#                         help='stretch factor')
-#     parser.add_argument('-lon0',
-#                         metavar='X',
-#                         type=float,
-#                         help='target longitude')
-#     parser.add_argument('-lat0',
-#                         metavar='Y',
-#                         type=float,
-#                         help='target latitude')
-#     parser.add_argument('-csres',
-#                         metavar='R',
-#                         type=int,
-#                         required=True,
-#                         help='cubed-sphere resolution')
-#
-#     def parser_cb(args):
-#         grid_conf = {'cs_res': args.csres}
-#         if args.sf is not None:
-#             grid_conf = {
-#                 **grid_conf,
-#                 'stretch_factor': args.sf,
-#                 'target_lat': args.lat0,
-#                 'target_lon': args.lon0,
-#             }
-#         return {'grid': grid_conf}
-#     return parser_cb
-#
-#
-# def parse_job_args(parser: argparse.ArgumentParser):
-#     parser.add_argument('-ncores',
-#                         metavar='C',
-#                         type=int,
-#                         required=True,
-#                         help='total number of cores')
-#     parser.add_argument('-cpn',
-#                         metavar='P',
-#                         type=int,
-#                         required=True,
-#                         help='cores per node')
-#     parser.add_argument('-q',
-#                         metavar='Y',
-#                         type=str,
-#                         required=True,
-#                         help='job queue')
-#
-#     def parser_cb(args):
-#         job_conf = {
-#             'queue': args.q,
-#             'cores_per_node': args.cpn,
-#             'num_cores': args.ncores,
-#             'num_nodes': args.ncores // args.cpn,
-#         }
-#         return {'job': job_conf}
-#     return parser_cb
-#
-#
-# def parse_paths_args(parser: argparse.ArgumentParser):
-#     parser.add_argument('-rst',
-#                         metavar='C',
-#                         type=str,
-#                         required=True,
-#                         help='restart file')
-#
-#     def parser_cb(args):
-#         paths_conf = {
-#             'restart_file': args.rst
-#         }
-#         return {'paths': paths_conf}
-#     return parser_cb
-#
-# def parse_templates_args(parser: argparse.ArgumentParser):
-#     parser.add_argument('templates',
-#                         type=str,
-#                         nargs='+',
-#                         help='template directories')
-#
-#     def parser_cb(args):
-#         templates_conf = {
-#             'templates': [os.path.abspath(template_dir) for template_dir in args.templates]
-#         }
-#         return templates_conf
-#     return parser_cb
-#
-#
-#
-#
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser(description='Initialize the cwd as a run directory')
-#     subparsers = parser.add_subparsers(dest='command')
-#     parse_grid = parse_grid_args(subparsers.add_parser('grid'))
-#     parse_job = parse_job_args(subparsers.add_parser('job'))
-#     parse_paths = parse_paths_args(subparsers.add_parser('paths'))
-#     parse_templates = parse_templates_args(subparsers.add_parser('templates'))
-#     args = parser.parse_args()
-#
-#     if args.command == 'grid':
-#         conf = parse_grid(args)
-#     elif args.command == 'job':
-#         conf = parse_job(args)
-#     elif args.command == 'paths':
-#         conf = parse_paths(args)
-#     elif args.command == 'templates':
-#         conf = parse_templates(args)
-#     else:
-#         raise ValueError('Unknown command')
-#
-#     if not os.path.exists('conf.yml'):
-#         pathlib.Path('conf.yml').touch()
-#
-#     with open('conf.yml', 'r') as f:
-#         cur_conf = yaml.safe_load(f)
-#         if cur_conf is None:
-#             cur_conf = {}
-#
-#     cur_conf.update(conf)
-#
-#     with open('conf.yml', 'w') as f:
-#         yaml.dump(cur_conf, f)
-#
-#     print('Updated conf.yml')
-#
-
 import argparse
 import os.path
+import pathlib
 
 import yaml
-import rundir.core
+from rundir.core import ConfigurationError, TemplateDirectoryError, SettingsGroup
 
-# I should add a validate function
+
+class SettingsSubArgParser(SettingsGroup):
+    def __init__(self, group_name, subargparser: argparse.ArgumentParser, **group_def):
+        super().__init__(group_name, **group_def)
+        for name, field in self._fields.items():
+            subargparser.add_argument(f'--{name}', type=field['type'], help=field['desc'])
+
 
 if __name__ == '__main__':
-    # Open conf file
+    # Open conf dict
+    pathlib.Path('conf.yml').touch()
     with open('conf.yml', 'r') as f:
         conf = yaml.safe_load(f)
-        if conf is None:
-            conf = {}
+    if conf is None:
+        conf = {}
 
-    if 'templates' not in conf:
-        parser = argparse.ArgumentParser(description='Initialize cwd as a run directory')
-        parser.add_argument('template_dirs', nargs='+', type=str, required=True, help='Paths to template directories')
-        args = parser.parse_args()
-        conf['templates'] = [os.path.abspath(template_dir) for template_dir in args.templates]
-    else:
-        parser = argparse.ArgumentParser(description='Initialize cwd as a run directory')
-        subparsers = parser.add_subparsers(dest='command')
+    try:
+        # Determine stage. If "templates" is in conf then we're initializing sections and fields, otherwise we're
+        # setting template directories.
+        parser = argparse.ArgumentParser(description='Configure run directory settings.')
+        if 'templates' not in conf:
+            parser.add_argument('template_dirs', nargs='+', type=str, help='Paths to template directories')
+            args = parser.parse_args()
+            conf['templates'] = [os.path.abspath(template_dir) for template_dir in args.template_dirs]
 
-        template_defs = {}
-        for template_dir in conf['templates'][::-1]:
-            defs_fname = os.path.join(template_dir, 'template.yml')
-            if os.path.exists(defs_fname):
-                with open(defs_fname, 'r') as f:
-                    template_defs.update(yaml.safe_load(f))
+            # Check template dirs exist
+            for template_dir in conf['templates']:
+                if not os.path.exists(template_dir):
+                    raise ConfigurationError(f'template directory "{template_dir}" doesn\'t exist!')
+                if not os.path.exists(os.path.join(template_dir, 'intf_decl.yml')):
+                    raise ConfigurationError(f'template directory "{template_dir}" doesn\'t contain an intf_decl.yml file!')
 
-        group_parsers = {}
-        for group, group_def in template_defs.items():
-            group_parsers[group] = rundir.core.GroupArgParser(group, subparsers.add_parser(group), **group_def)
-        args = parser.parse_args()
-        new_values = vars(args)
-        group = new_values.pop('command')
-        new_values = {k: v for k, v in new_values.items() if v is not None}
-        conf[group].update(new_values)
+            print("Updated run directory templates.")
+        else:
+            subparsers = parser.add_subparsers(dest='group')
 
-        group_parsers[group].validate(**conf)
+            # Join template directory's interface declarations
+            intf_decl = {}
+            for template_dir in conf['templates'][::-1]:
+                defs_fname = os.path.join(template_dir, 'intf_decl.yml')
+                if os.path.exists(defs_fname):
+                    with open(defs_fname, 'r') as f:
+                        template_intf_decl = yaml.safe_load(f)
+                        if template_intf_decl is None:
+                            template_intf_decl = {}
+                        intf_decl.update(template_intf_decl)
 
-    with open('conf.yml', 'w') as f:
-        yaml.safe_dump(conf, f)
+            # Make a dict of group parsers (so we can validate the settings)
+            settings_groups = {}
+            for group, group_def in intf_decl.items():
+                settings_groups[group] = SettingsSubArgParser(group, subparsers.add_parser(group), **group_def)
+            subparsers.add_parser('check')
+
+            # Parse arguments
+            args = parser.parse_args()
+            new_values = vars(args)
+            group = new_values.pop('group')
+            if group is None:
+                group = 'check'
+
+            if group != 'check':
+                # Fill conf group with values from arguments
+                new_values = {k: v for k, v in new_values.items() if v is not None}
+                if group not in conf:
+                    conf[group] = {}
+                conf[group].update(new_values)
+
+                settings_groups[group].validate(**conf)
+            else:
+                # Loop through other groups
+                errors = []
+                for group_name in settings_groups:
+                    try:
+                        settings_groups[group_name].validate(**conf)
+                    except ConfigurationError as e:
+                        errors.append(str(e))
+                if len(errors) > 0:
+                    print(f"init.py: configuration error(s): {''.join(errors)}")
+                    exit(1)
+                else:
+                    exit(0)
+
+        with open('conf.yml', 'w') as f:
+            yaml.safe_dump(conf, f)
+
+    except ConfigurationError as e:
+        print(f"init.py: configuration error(s): {str(e)}")
+        exit(1)
+    except TemplateDirectoryError as e:
+        print(f"init.py: template error(s): {str(e)}")
+        exit(1)
 
 
 

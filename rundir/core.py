@@ -1,5 +1,6 @@
 import collections
 import io
+import pydoc
 import argparse
 
 import yaml
@@ -23,67 +24,70 @@ import yaml
 # - wizard
 
 
-class _MutableMap(collections.MutableMapping):
-    def __init__(self, *args, **kwargs):
-        self._store = dict()
-        self._store.update(dict(*args, **kwargs))
-
-    def __getitem__(self, item):
-        return self._store[item]
-
-    def __setitem__(self, item, value):
-        self._store[item] = value
-
-    def __delitem__(self, key):
-        del self._store[key]
-
-    def __iter__(self):
-        return iter(self._store)
-
-    def __len__(self) -> int:
-        return len(self._store)
-
-    def __str__(self) -> str:
-        string_stream = io.StringIO()
-        yaml.dump(self._store, string_stream)
-        return string_stream.getvalue()
+class ConfigurationError(ValueError):
+    pass
 
 
-class EntryDefinition(_MutableMap):
-    def __init__(self, name: str, type: str, desc="",):
-        super().__init__(name=name, type=eval(type), desc=desc)
+class TemplateDirectoryError(ValueError):
+    pass
 
 
-class GroupDefinition(_MutableMap):
-    def __init__(self, group_name, validate=[], **spec_definitions):
-        super().__init__(**{k: EntryDefinition(name=k, **v) for k, v in spec_definitions.items()})
-        self._validating_statements = validate.copy()
+def safe_field(group, name, **kwargs):
+    required_params = ['type', 'desc']
+    casts = [pydoc.locate, str]
+    field = {'name': name}
+    for param, cast in zip(required_params, casts):
+        try:
+            field[param] = cast(kwargs[param])
+        except KeyError as e:
+            raise TemplateDirectoryError(f'{group} field "{name}" is missing "{param}"')
+    if not isinstance(field['type'], type):
+        raise TemplateDirectoryError(f'{group} field "{name}"\'s type is not valid')
+    return field
+
+
+def safe_validate_decl(group, **kwargs):
+    if not any([key in kwargs for key in ['required', 'valid_eval', 'invalid_eval']]):
+        raise TemplateDirectoryError(f'a validate declaration in {group} is missing the evaluation type')
+    if 'required' not in kwargs and 'error' not in kwargs:
+        raise TemplateDirectoryError(f'an _eval validate declaration in {group} is missing "error"')
+    return kwargs
+
+
+class SettingsGroup:
+    def __init__(self, group_name, **group_def):
         self._group_name = group_name
+        if 'validate' in group_def:
+            self._validating_statements = [safe_validate_decl(group_name, **validate_decl) for validate_decl in group_def.pop('validate')]
+        else:
+            self._validating_statements = []
+        self._fields = {name: safe_field(group_name, name, **field_def) for name, field_def in group_def.items()}
 
     def validate(self, **groups):
-        # This function should return a tuple of (ok, bad variables, reasoning)
-        #
         locals().update(**groups)
-        for v in self._validating_statements:
-            if 'required' in v:
-                missing = [field for field in v['required'] if field not in groups[self._group_name]]
-                if len(missing) > 0:
-                    raise ValueError(', '.join(missing) + ' are required')
-            elif 'valid_if_true' in v:
-                if not eval(v['valid_if_true']):
-                    raise ValueError(v['error'])
-            elif 'valid_if_false' in v:
-                if eval(v['valid_if_false']):
-                    raise ValueError(v['error'])
+        errors = []
 
+        if self._group_name not in groups:
+            raise ConfigurationError(f'\n\t- {self._group_name} group is not configured')
 
-class GroupArgParser(GroupDefinition):
-    def __init__(self, group_name, subargparser: argparse.ArgumentParser, validate=[], **spec_definitions):
-        super().__init__(group_name, validate, **spec_definitions)
-        for field in spec_definitions.keys():
-            subargparser.add_argument(f'--{field}', type=self[field]['type'], help=self[field]['desc'])
-
-
+        for statement_decl in self._validating_statements:
+            try:
+                if 'required' in statement_decl:
+                    missing = [f'"{field}"' for field in statement_decl['required'] if field not in groups[self._group_name]]
+                    if len(missing) > 0:
+                        errors.append(f'required settings: {", ".join(missing)}')
+                elif 'valid_eval' in statement_decl:
+                    if not eval(statement_decl['valid_eval']):
+                        errors.append(statement_decl['error'])
+                elif 'invalid_eval' in statement_decl:
+                    if eval(statement_decl['invalid_eval']):
+                        errors.append(statement_decl['error'])
+                else:
+                    RuntimeError("This shouldn't happen!")
+            except KeyError:
+                pass
+        if len(errors) > 0:
+            raise ConfigurationError(''.join([f'\n\t- {e}' for e in errors]))
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-
 grid:
   stretch_factor:
     type: float
@@ -14,8 +13,10 @@ grid:
     desc: "cubed-sphere resolution"
   validate:
     - required: [ "cs_res" ]
-    - valid_if_false: "'stretch_factor' in grid and ('target_lon' not in grid or 'target_lat' not in grid)"
+    - invalid_eval: "'stretch_factor' in grid and ('target_lon' not in grid or 'target_lat' not in grid)"
       error: "target_lat and target_lon are required if stretch_factor is not None"
+    - invalid_eval: "'target_lon' in grid and not (0 < grid['target_lon'] < 360)"
+      error: "target_lon must be in [0, 360)"
 job:
   num_cores:
     type: int
@@ -28,7 +29,7 @@ job:
     desc: "job queue"
   validate:
     - required: [ "num_cores", "cores_per_node" ]
-    - valid_if_true: "job['num_cores'] % job['cores_per_node'] == 0"
+    - valid_eval: "job['num_cores'] % job['cores_per_node'] == 0"
       error: "num_cores must be divisible by cores_per_node"
 paths:
   restart_file:
