@@ -3,7 +3,7 @@ import os.path
 import pathlib
 
 import yaml
-from rundir.core import ConfigurationError, TemplateDirectoryError, SettingsGroup
+from cog.core import ConfigurationError, TemplateDirectoryError, SettingsGroup
 
 
 class SettingsSubArgParser(SettingsGroup):
