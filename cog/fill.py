@@ -26,7 +26,10 @@ if __name__ == '__main__':
             # Create directories
             for dir in dirnames:
                 localdir = os.path.join(localroot, dir)
-                pathlib.Path(localdir).mkdir(exist_ok=True)
+                if os.path.islink(os.path.join(root, dir)):
+                    shutil.copy(os.path.join(root, dir), localdir, follow_symlinks=False)
+                else:
+                    pathlib.Path(localdir).mkdir(exist_ok=True)
             for fname in filenames:
                 if fname == template_hook_file:
                     continue
